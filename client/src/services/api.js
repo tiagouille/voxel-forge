@@ -9,7 +9,11 @@ const STORAGE_KEY = 'voxel_forge_api_url';
 export function getApiBaseUrl() {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) return saved.replace(/\/+$/, '');
-  // Default to relative /api (handled by Vite proxy in dev)
+  // When running on GitHub Pages, automatically connect to the live Render backend
+  if (typeof window !== 'undefined' && window.location.hostname.includes('github.io')) {
+    return 'https://voxel-forge.onrender.com';
+  }
+  // Default to relative /api (handled by Vite proxy in local dev)
   return '';
 }
 

@@ -1,0 +1,28 @@
+{
+  "name": "voxel-forge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Voxel Forge - Générateur de projets IA avec Gemini & Mistral",
+  "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue,cyan\" \"pnpm --filter voxel-forge-server dev\" \"pnpm --filter voxel-forge-client dev\"",
+    "dev:server": "pnpm --filter voxel-forge-server dev",
+    "dev:client": "pnpm --filter voxel-forge-client dev",
+    "install:all": "pnpm install",
+    "build": "pnpm --filter voxel-forge-client build",
+    "start": "pnpm --filter voxel-forge-server start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "keywords": [
+    "ai",
+    "generator",
+    "gemini",
+    "mistral",
+    "monaco-editor",
+    "react",
+    "express"
+  ],
+  "author": "Voxel Forge Team",
+  "license": "MIT"
+}

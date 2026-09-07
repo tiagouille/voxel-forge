@@ -6,6 +6,7 @@ import { AssistantPanel } from './components/AssistantPanel';
 import { ProjectModal } from './components/ProjectModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ExplanationModal } from './components/ExplanationModal';
+import { PreviewModal } from './components/PreviewModal';
 import { api } from './services/api';
 import { downloadProjectAsZip } from './services/zipExport';
 
@@ -23,6 +24,7 @@ export default function App() {
   // Modals
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [explanationModal, setExplanationModal] = useState({ isOpen: false, title: '', content: '' });
 
   // Load providers and initial starter project
@@ -305,6 +307,7 @@ export default function App() {
         setMode={setMode}
         providers={providers}
         onNewProject={() => setIsProjectModalOpen(true)}
+        onRun={() => setIsPreviewOpen(true)}
         onDownloadZip={handleDownloadZip}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         isGenerating={isGenerating}
@@ -343,6 +346,7 @@ export default function App() {
           pipelineStatus={pipelineStatus}
           isGenerating={isGenerating}
           onGenerateProject={() => setIsProjectModalOpen(true)}
+          onRun={() => setIsPreviewOpen(true)}
           onReviewWithMistral={handleReviewWithMistral}
           onFixActiveFile={handleFixActiveFile}
           onImproveActiveFile={handleImproveActiveFile}
@@ -353,6 +357,12 @@ export default function App() {
       </div>
 
       {/* Modals */}
+      <PreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        project={project}
+      />
+
       <ProjectModal 
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}

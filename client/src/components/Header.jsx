@@ -7,7 +7,8 @@ import {
   Download, 
   FolderPlus, 
   Settings, 
-  Layers 
+  Layers,
+  Play
 } from 'lucide-react';
 
 export function Header({ 
@@ -15,6 +16,7 @@ export function Header({
   setMode, 
   providers, 
   onNewProject, 
+  onRun,
   onDownloadZip, 
   onOpenSettings,
   isGenerating 
@@ -105,6 +107,15 @@ export function Header({
 
       {/* Action Buttons */}
       <div className="header-right">
+        <button 
+          className="btn btn-run btn-sm"
+          onClick={onRun}
+          title="Exécuter et essayer le jeu / site en direct (Run)"
+        >
+          <Play size={13} fill="#10b981" color="#10b981" />
+          <span>Run</span>
+        </button>
+
         <button 
           className="btn btn-primary btn-sm"
           onClick={onNewProject}

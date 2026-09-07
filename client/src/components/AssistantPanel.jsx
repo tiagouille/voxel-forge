@@ -16,7 +16,8 @@ import {
   HelpCircle,
   Bug,
   Lock,
-  PackageCheck
+  PackageCheck,
+  Play
 } from 'lucide-react';
 
 export function AssistantPanel({
@@ -26,6 +27,7 @@ export function AssistantPanel({
   pipelineStatus,
   isGenerating,
   onGenerateProject,
+  onRun,
   onReviewWithMistral,
   onFixActiveFile,
   onImproveActiveFile,
@@ -211,6 +213,17 @@ export function AssistantPanel({
             >
               <Sparkles size={14} />
               <span>Générer un Projet</span>
+            </button>
+
+            <button 
+              className="btn btn-run" 
+              onClick={onRun} 
+              disabled={!project}
+              style={{ gridColumn: 'span 2', padding: '10px' }}
+              title="Exécuter et essayer le jeu / l'application en direct (Run)"
+            >
+              <Play size={16} fill="#10b981" color="#10b981" />
+              <span>Lancer le Projet (Run)</span>
             </button>
 
             <button 

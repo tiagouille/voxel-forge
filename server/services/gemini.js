@@ -8,9 +8,9 @@ import { sanitizeFilePath, inferLanguageFromPath } from '../middleware/security.
 
 export class GeminiService {
   constructor() {
-    this.modelName = 'gemini-3.8-flash';
-    this.fallbackModel = 'gemini-3.6-flash';
-    this.tertiaryModel = 'gemini-flash-latest';
+    this.modelName = 'gemini-3.5-flash';
+    this.fallbackModel = 'gemini-3.1-flash-lite';
+    this.tertiaryModel = 'gemini-3.6-flash';
   }
 
   get apiKey() {
@@ -30,53 +30,65 @@ export class GeminiService {
     }
 
     const systemPrompt = `Tu es Gemini, l'Architecte Logiciel et Développeur Principal de Voxel Forge.
-Ton rôle est de concevoir et générer l'intégralité du code d'un projet informatique complet, moderne, propre et parfaitement fonctionnel.
-
-Tu dois répondre UNIQUEMENT avec un objet JSON strictement valide respectant ce schéma exact :
-{
-  "name": "nom_du_projet",
-  "summary": "Résumé concis de l'application",
-  "architecture": "Description détaillée de l'architecture logicielle choisie et des modules",
-  "techStack": {
-    "type": "${type}",
-    "language": "${language}",
-    "framework": "${framework}"
-  },
-  "files": [
-    {
-      "path": "chemin/relatif/du/fichier.ext",
-      "content": "Code source complet du fichier (sans troncature ni placeholder // TODO)",
-      "language": "langage_monaco_editor"
-    }
-  ]
-}
+Ton rôle est de concevoir et générer l'intégralité du code d'un projet informatique complet, moderne, propre et parfaitement fonctionnel répondant STRICTEMENT à la demande de l'utilisateur.
 
 Règles impératives :
 1. Génère du code COMPLET, robuste et directement exécutable. Pas de code tronqué ni de commentaires de type "// TODO: implémenter ici".
-2. Respecte les bonnes pratiques du langage (${language}) et du framework (${framework}).
-3. Crée tous les fichiers indispensables : code source, configuration (ex: package.json si node/react/vite, index.html, styles), et un README.md détaillant l'installation et l'exécution.
-4. N'utilise JAMAIS de chemins absolus ni de "../". Utilise des chemins relatifs propres (ex: src/components/Game.jsx).
-5. Ne mets aucun texte en dehors du JSON.`;
+2. Respecte fidèlement ce que demande l'utilisateur (${description}).
+3. Respecte les bonnes pratiques du langage (${language}) et du framework (${framework}).
+4. Crée tous les fichiers indispensables : code source complet, fichiers HTML/CSS/JS, et un README.md détaillant le projet.
+5. N'utilise JAMAIS de chemins absolus ni de "../". Utilise des chemins relatifs propres (ex: index.html, src/game.js, styles.css).`;
 
-    const userPrompt = `Génère le projet suivant :
+    const userPrompt = `Génère le projet demandé :
 Nom suggéré : ${name}
 Type de projet : ${type}
 Langage principal : ${language}
 Framework / Moteur : ${framework}
 Mode d'exécution : ${mode}
-Description & spécifications de l'utilisateur :
+Description & spécifications précises de l'utilisateur :
 "${description || 'Projet complet prêt pour la production'}"
 
-Fournis tous les fichiers nécessaires pour que l'application soit immédiatement opérationnelle.`;
+Fournis tous les fichiers nécessaires avec leur code complet pour que l'application soit immédiatement opérationnelle.`;
+
+    const projectSchema = {
+      type: 'OBJECT',
+      properties: {
+        name: { type: 'STRING' },
+        summary: { type: 'STRING' },
+        architecture: { type: 'STRING' },
+        techStack: {
+          type: 'OBJECT',
+          properties: {
+            type: { type: 'STRING' },
+            language: { type: 'STRING' },
+            framework: { type: 'STRING' }
+          },
+          required: ['type', 'language', 'framework']
+        },
+        files: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              path: { type: 'STRING' },
+              content: { type: 'STRING' },
+              language: { type: 'STRING' }
+            },
+            required: ['path', 'content', 'language']
+          }
+        }
+      },
+      required: ['name', 'summary', 'architecture', 'techStack', 'files']
+    };
 
     try {
-      const response = await this.callGeminiApi(systemPrompt, userPrompt);
+      const response = await this.callGeminiApi(systemPrompt, userPrompt, true, projectSchema);
       const parsed = extractJsonFromLLMResponse(response);
 
       return this.sanitizeGeneratedProject(parsed, name, type, language, framework);
     } catch (err) {
-      console.warn(`[GeminiService] Live API call failed (${err.message}). Utilisation du fallback intelligent.`);
-      return this.generateMockProject({ name, type, language, framework, description, mode, note: `Généré via moteur de secours suite à: ${err.message}` });
+      console.error(`[GeminiService] Échec des appels API live (${err.message}).`);
+      throw new Error(`Échec de la génération IA Gemini: ${err.message}`);
     }
   }
 
@@ -225,7 +237,7 @@ ${content}
   /**
    * Underlying call to Google Gemini REST API.
    */
-  async callGeminiApi(systemPrompt, userPrompt, expectJson = true) {
+  async callGeminiApi(systemPrompt, userPrompt, expectJson = true, schema = null) {
     const modelsToTry = [this.modelName, this.fallbackModel, this.tertiaryModel];
     let lastError = null;
 
@@ -243,8 +255,12 @@ ${content}
           ],
           generationConfig: {
             temperature: 0.2,
-            maxOutputTokens: 8192,
-            ...(expectJson ? { responseMimeType: 'application/json' } : {})
+            maxOutputTokens: 16384,
+            ...(expectJson ? { responseMimeType: 'application/json' } : {}),
+            ...(schema ? { responseSchema: schema } : {}),
+            thinkingConfig: {
+              thinkingBudget: 0
+            }
           }
         };
 
@@ -270,11 +286,11 @@ ${content}
         return text;
       } catch (err) {
         lastError = err;
-        console.warn(`[GeminiService] Modèle ${model} a échoué, essai du suivant...`);
+        console.warn(`[GeminiService] Modèle ${model} a échoué (${err.message}), essai du suivant...`);
       }
     }
 
-    throw lastError || new Error('Échec des appels API Gemini');
+    throw lastError || new Error('Échec des appels API Gemini sur l\'ensemble des modèles configurés');
   }
 
   /**

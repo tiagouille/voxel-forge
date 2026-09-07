@@ -9,6 +9,9 @@ import { ExplanationModal } from './components/ExplanationModal';
 import { PreviewModal } from './components/PreviewModal';
 import { api } from './services/api';
 import { downloadProjectAsZip } from './services/zipExport';
+import { DEFAULT_STARTER_PROJECT } from './constants/starterProject';
+
+const STORAGE_PROJECT_KEY = 'voxel_forge_active_project';
 
 export default function App() {
   const [project, setProject] = useState(null);
@@ -27,10 +30,10 @@ export default function App() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [explanationModal, setExplanationModal] = useState({ isOpen: false, title: '', content: '' });
 
-  // Load providers and initial starter project
+  // Load providers and restore saved or default project without API calls
   useEffect(() => {
     fetchProviders();
-    generateStarterProject();
+    loadInitialProject();
   }, []);
 
   const fetchProviders = async () => {
@@ -42,15 +45,30 @@ export default function App() {
     }
   };
 
-  const generateStarterProject = async () => {
-    await handleGenerateProject({
-      name: 'voxel-cyber-demo',
-      type: 'Site web',
-      language: 'JavaScript',
-      framework: 'React + Vite',
-      mode: 'auto',
-      description: 'Application moderne Voxel Forge avec tableau de bord et composants interactifs.'
-    });
+  const loadInitialProject = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_PROJECT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.files) && parsed.files.length > 0) {
+          setProject(parsed);
+          const defaultFile = parsed.files.find(f => 
+            f.path.includes('App') || f.path.includes('index') || f.path.includes('main')
+          ) || parsed.files[0];
+          setActiveFile(defaultFile);
+          setOpenTabs([defaultFile]);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Erreur lecture localStorage projet:', e);
+    }
+
+    // Default clean starter project (no API call, zero delay)
+    setProject(DEFAULT_STARTER_PROJECT);
+    const defaultFile = DEFAULT_STARTER_PROJECT.files.find(f => f.path === 'index.html') || DEFAULT_STARTER_PROJECT.files[0];
+    setActiveFile(defaultFile);
+    setOpenTabs([defaultFile]);
   };
 
   // Generate full project through the AI pipeline
@@ -90,6 +108,11 @@ export default function App() {
 
       const finalProject = response.project;
       setProject(finalProject);
+      try {
+        localStorage.setItem(STORAGE_PROJECT_KEY, JSON.stringify(finalProject));
+      } catch (e) {
+        console.warn('Erreur sauvegarde localStorage:', e);
+      }
       setReview(response.review || null);
 
       // Open primary file by default
@@ -254,7 +277,11 @@ export default function App() {
         }
         return f;
       });
-      return { ...prev, files: updatedFiles };
+      const updated = { ...prev, files: updatedFiles };
+      try {
+        localStorage.setItem(STORAGE_PROJECT_KEY, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
     });
 
     setActiveFile(prev => prev && prev.path === filePath ? { ...prev, content: newContent } : prev);
@@ -281,20 +308,32 @@ export default function App() {
       language: 'javascript',
     };
 
-    setProject(prev => ({
-      ...prev,
-      files: [...prev.files, newFile],
-    }));
+    setProject(prev => {
+      const updated = {
+        ...prev,
+        files: [...prev.files, newFile],
+      };
+      try {
+        localStorage.setItem(STORAGE_PROJECT_KEY, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
 
     handleSelectFile(newFile);
   };
 
   const handleDeleteFile = (filePath) => {
     if (!project) return;
-    setProject(prev => ({
-      ...prev,
-      files: prev.files.filter(f => f.path !== filePath),
-    }));
+    setProject(prev => {
+      const updated = {
+        ...prev,
+        files: prev.files.filter(f => f.path !== filePath),
+      };
+      try {
+        localStorage.setItem(STORAGE_PROJECT_KEY, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
 
     handleCloseTab(filePath);
   };

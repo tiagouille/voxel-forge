@@ -34,11 +34,18 @@ const FRAMEWORKS = [
 
 const QUICK_PRESETS = [
   {
-    title: '🎮 Jeu Arcade 2D',
+    title: '🎮 Jeu Pong Arcade',
     type: 'Jeu vidéo',
     language: 'JavaScript',
-    framework: 'Vite',
-    desc: 'Jeu spatial rétro en canvas 2D avec vaisseau, vagues d\'ennemis, système de scores, tirs laser et particules.',
+    framework: 'HTML5 Canvas',
+    desc: 'Jeu rétro Pong complet en Canvas avec raquettes réactives, balle avec rebonds physiques et affichage du score.',
+  },
+  {
+    title: '🕹️ Jeu Snake 2D',
+    type: 'Jeu vidéo',
+    language: 'JavaScript',
+    framework: 'HTML5 Canvas',
+    desc: 'Jeu Snake rétro fluide en Canvas avec grille, serpent animé, pommes bonus, score et gestion de défaite.',
   },
   {
     title: '⚡ Dashboard React',
@@ -48,18 +55,11 @@ const QUICK_PRESETS = [
     desc: 'Tableau de bord moderne sombre avec statistiques interactives, liste de fonctionnalités et composants modulaires.',
   },
   {
-    title: '🚀 API REST Express',
-    type: 'Application',
+    title: '🧮 Calculatrice Moderne',
+    type: 'Site web',
     language: 'JavaScript',
-    framework: 'Express',
-    desc: 'API REST modulaire avec architecture contrôleurs / services / middleware, gestion d\'erreurs et validation.',
-  },
-  {
-    title: '🐍 CLI Data Python',
-    type: 'Logiciel',
-    language: 'Python',
-    framework: 'Autre',
-    desc: 'Utilitaire en ligne de commande avec argparse, traitement de données automatisé et tests unitaires.',
+    framework: 'HTML/CSS/JS',
+    desc: 'Calculatrice élégante avec design sombre, affichage des opérations, boutons réactifs et historique.',
   }
 ];
 

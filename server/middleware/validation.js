@@ -58,7 +58,6 @@ export function extractJsonFromLLMResponse(rawText) {
     try {
       const relaxed = cleaned
         .replace(/,\s*([}\]])/g, '$1')
-        .replace(/\n/g, ' ')
         .replace(/\r/g, '');
       return JSON.parse(relaxed);
     } catch (secondErr) {

@@ -10,7 +10,7 @@ export class GeminiService {
   constructor() {
     this.modelName = 'gemini-3.5-flash';
     this.fallbackModel = 'gemini-3.1-flash-lite';
-    this.tertiaryModel = 'gemini-3.6-flash';
+    this.tertiaryModel = 'gemini-3.7-flash';
   }
 
   get apiKey() {
@@ -242,51 +242,60 @@ ${content}
     let lastError = null;
 
     for (const model of modelsToTry) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
-        const bodyPayload = {
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                { text: `${systemPrompt}\n\n---\n\n${userPrompt}` }
-              ]
+      // First attempt with thinkingBudget: 0 (if supported), fallback to standard config on 400
+      for (const disableThinking of [true, false]) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
+          const bodyPayload = {
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  { text: `${systemPrompt}\n\n---\n\n${userPrompt}` }
+                ]
+              }
+            ],
+            generationConfig: {
+              temperature: 0.2,
+              maxOutputTokens: 16384,
+              ...(expectJson ? { responseMimeType: 'application/json' } : {}),
+              ...(schema ? { responseSchema: schema } : {}),
+              ...(disableThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {})
             }
-          ],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 16384,
-            ...(expectJson ? { responseMimeType: 'application/json' } : {}),
-            ...(schema ? { responseSchema: schema } : {}),
-            thinkingConfig: {
-              thinkingBudget: 0
+          };
+
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodyPayload),
+          });
+
+          if (!res.ok) {
+            const errText = await res.text();
+            // If 400 occurred specifically with thinkingConfig, retry without thinkingConfig
+            if (res.status === 400 && disableThinking) {
+              continue;
             }
+            throw new Error(`Gemini API error [${res.status}]: ${errText}`);
           }
-        };
 
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(bodyPayload),
-        });
+          const data = await res.json();
+          const candidate = data.candidates?.[0];
+          const text = candidate?.content?.parts?.[0]?.text;
 
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(`Gemini API error [${res.status}]: ${errText}`);
+          if (!text) {
+            throw new Error('Réponse vide reçue de Gemini');
+          }
+
+          return text;
+        } catch (err) {
+          lastError = err;
+          if (disableThinking && err.message.includes('400')) {
+            continue;
+          }
+          console.warn(`[GeminiService] Modèle ${model} a échoué (${err.message}), essai du suivant...`);
+          break;
         }
-
-        const data = await res.json();
-        const candidate = data.candidates?.[0];
-        const text = candidate?.content?.parts?.[0]?.text;
-
-        if (!text) {
-          throw new Error('Réponse vide reçue de Gemini');
-        }
-
-        return text;
-      } catch (err) {
-        lastError = err;
-        console.warn(`[GeminiService] Modèle ${model} a échoué (${err.message}), essai du suivant...`);
       }
     }
 

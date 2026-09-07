@@ -11,13 +11,16 @@ export function extractJsonFromLLMResponse(rawText) {
 
   let cleaned = rawText.trim();
 
-  // Strip markdown code fences if present: ```json ... ``` or ``` ... ```
-  const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-  if (codeBlockMatch && codeBlockMatch[1]) {
-    cleaned = codeBlockMatch[1].trim();
+  // Strip outer markdown code fences if wrapped: ```json ... ``` or ``` ... ```
+  if (cleaned.startsWith('```')) {
+    const firstNewline = cleaned.indexOf('\n');
+    const lastFence = cleaned.lastIndexOf('```');
+    if (firstNewline !== -1 && lastFence > firstNewline) {
+      cleaned = cleaned.substring(firstNewline + 1, lastFence).trim();
+    }
   }
 
-  // If there's still text before the first { or [
+  // Extract from the very first opening brace/bracket to the very last closing brace/bracket
   const firstBrace = cleaned.indexOf('{');
   const firstBracket = cleaned.indexOf('[');
   let startIdx = -1;
@@ -30,11 +33,6 @@ export function extractJsonFromLLMResponse(rawText) {
     startIdx = firstBracket;
   }
 
-  if (startIdx > 0) {
-    cleaned = cleaned.slice(startIdx);
-  }
-
-  // Find last closing brace or bracket
   const lastBrace = cleaned.lastIndexOf('}');
   const lastBracket = cleaned.lastIndexOf(']');
   let endIdx = -1;
@@ -47,8 +45,8 @@ export function extractJsonFromLLMResponse(rawText) {
     endIdx = lastBracket;
   }
 
-  if (endIdx !== -1 && endIdx < cleaned.length - 1) {
-    cleaned = cleaned.slice(0, endIdx + 1);
+  if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
+    cleaned = cleaned.substring(startIdx, endIdx + 1);
   }
 
   try {

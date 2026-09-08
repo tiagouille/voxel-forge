@@ -60,6 +60,12 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  generateTutorial: (payload) =>
+    request('/api/tutorial', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
   reviewProject: (project, mode = 'auto') =>
     request('/api/review', {
       method: 'POST',

@@ -7,6 +7,8 @@ import { ProjectModal } from './components/ProjectModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ExplanationModal } from './components/ExplanationModal';
 import { PreviewModal } from './components/PreviewModal';
+import { TutorialModal } from './components/TutorialModal';
+import { TutorialViewerModal } from './components/TutorialViewerModal';
 import { api } from './services/api';
 import { downloadProjectAsZip } from './services/zipExport';
 import { DEFAULT_STARTER_PROJECT } from './constants/starterProject';
@@ -28,6 +30,10 @@ export default function App() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isTutorialModalOpen, setIsTutorialModalOpen] = useState(false);
+  const [isTutorialViewerOpen, setIsTutorialViewerOpen] = useState(false);
+  const [currentTutorial, setCurrentTutorial] = useState(null);
+  const [isGeneratingTutorial, setIsGeneratingTutorial] = useState(false);
   const [explanationModal, setExplanationModal] = useState({ isOpen: false, title: '', content: '' });
 
   // Load providers and restore saved or default project without API calls
@@ -131,6 +137,54 @@ export default function App() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Generate step-by-step interactive tutorial for any language/software
+  const handleGenerateTutorial = async (params) => {
+    setIsGeneratingTutorial(true);
+    try {
+      const response = await api.generateTutorial(params);
+      if (!response.success || !response.tutorial) {
+        throw new Error(response.error || 'Erreur lors de la génération du tutoriel');
+      }
+      setCurrentTutorial(response.tutorial);
+      setIsTutorialModalOpen(false);
+      setIsTutorialViewerOpen(true);
+    } catch (err) {
+      alert(`Erreur génération tutoriel: ${err.message}`);
+    } finally {
+      setIsGeneratingTutorial(false);
+    }
+  };
+
+  // Load tutorial files directly into Voxel Studio workspace
+  const handleLoadTutorialIntoStudio = (tut) => {
+    if (!tut || !tut.files || tut.files.length === 0) return;
+
+    const formattedFiles = tut.files.map(f => ({
+      path: f.name,
+      content: f.content,
+      language: f.language || 'plaintext'
+    }));
+
+    const newProject = {
+      name: tut.title || `${tut.language} - ${tut.software}`,
+      description: tut.summary || `Tutoriel ${tut.language} sur ${tut.software}`,
+      language: tut.language,
+      software: tut.software,
+      files: formattedFiles
+    };
+
+    setProject(newProject);
+    try {
+      localStorage.setItem(STORAGE_PROJECT_KEY, JSON.stringify(newProject));
+    } catch (e) {
+      console.warn('Erreur sauvegarde localStorage tutoriel:', e);
+    }
+
+    const defaultFile = formattedFiles.find(f => f.path.endsWith('.md')) || formattedFiles[0];
+    setActiveFile(defaultFile);
+    setOpenTabs([defaultFile]);
   };
 
   // Review with Mistral
@@ -346,6 +400,7 @@ export default function App() {
         setMode={setMode}
         providers={providers}
         onNewProject={() => setIsProjectModalOpen(true)}
+        onOpenTutorial={() => setIsTutorialModalOpen(true)}
         onRun={() => setIsPreviewOpen(true)}
         onDownloadZip={handleDownloadZip}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
@@ -385,6 +440,7 @@ export default function App() {
           pipelineStatus={pipelineStatus}
           isGenerating={isGenerating}
           onGenerateProject={() => setIsProjectModalOpen(true)}
+          onOpenTutorial={() => setIsTutorialModalOpen(true)}
           onRun={() => setIsPreviewOpen(true)}
           onReviewWithMistral={handleReviewWithMistral}
           onFixActiveFile={handleFixActiveFile}
@@ -400,6 +456,20 @@ export default function App() {
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         project={project}
+      />
+
+      <TutorialModal 
+        isOpen={isTutorialModalOpen}
+        onClose={() => setIsTutorialModalOpen(false)}
+        onSubmit={handleGenerateTutorial}
+        isGenerating={isGeneratingTutorial}
+      />
+
+      <TutorialViewerModal 
+        isOpen={isTutorialViewerOpen}
+        onClose={() => setIsTutorialViewerOpen(false)}
+        tutorial={currentTutorial}
+        onLoadIntoStudio={handleLoadTutorialIntoStudio}
       />
 
       <ProjectModal 

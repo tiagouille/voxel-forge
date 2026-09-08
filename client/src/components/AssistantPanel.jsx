@@ -17,7 +17,8 @@ import {
   Bug,
   Lock,
   PackageCheck,
-  Play
+  Play,
+  GraduationCap
 } from 'lucide-react';
 
 export function AssistantPanel({
@@ -27,6 +28,7 @@ export function AssistantPanel({
   pipelineStatus,
   isGenerating,
   onGenerateProject,
+  onOpenTutorial,
   onRun,
   onReviewWithMistral,
   onFixActiveFile,
@@ -213,6 +215,26 @@ export function AssistantPanel({
             >
               <Sparkles size={14} />
               <span>Générer un Projet</span>
+            </button>
+
+            <button 
+              className="btn btn-secondary" 
+              onClick={onOpenTutorial} 
+              disabled={isGenerating}
+              style={{ 
+                gridColumn: 'span 2', 
+                borderColor: '#a855f7', 
+                color: '#c084fc', 
+                background: 'rgba(168, 85, 247, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+              title="Générer un tutoriel pas à pas pour n'importe quel langage et logiciel (Unreal Engine 5, PyCharm, Godot, etc.)"
+            >
+              <GraduationCap size={16} color="#c084fc" />
+              <span style={{ fontWeight: 600 }}>Créer un Tutoriel (UE5, Python...)</span>
             </button>
 
             <button 

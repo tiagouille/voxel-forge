@@ -8,7 +8,8 @@ import {
   FolderPlus, 
   Settings, 
   Layers,
-  Play
+  Play,
+  GraduationCap
 } from 'lucide-react';
 
 export function Header({ 
@@ -16,6 +17,7 @@ export function Header({
   setMode, 
   providers, 
   onNewProject, 
+  onOpenTutorial,
   onRun,
   onDownloadZip, 
   onOpenSettings,
@@ -114,6 +116,16 @@ export function Header({
         >
           <Play size={13} fill="#10b981" color="#10b981" />
           <span>Run</span>
+        </button>
+
+        <button 
+          className="btn btn-secondary btn-sm"
+          onClick={onOpenTutorial}
+          title="Créer un tutoriel interactif pas à pas (Unreal Engine 5 Blueprints, Python PyCharm, Godot, etc.)"
+          style={{ borderColor: '#a855f7', color: '#c084fc' }}
+        >
+          <GraduationCap size={14} color="#a855f7" />
+          <span>Tutoriel</span>
         </button>
 
         <button 

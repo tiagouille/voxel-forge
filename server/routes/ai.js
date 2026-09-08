@@ -120,6 +120,41 @@ aiRouter.post('/generate', async (req, res) => {
 });
 
 /**
+ * POST /api/tutorial
+ * Generates an interactive, step-by-step tutorial for ANY language on ANY software.
+ */
+aiRouter.post('/tutorial', async (req, res) => {
+  try {
+    const {
+      language = 'Python',
+      software = 'PyCharm',
+      level = 'Débutant',
+      topic = 'Créer son premier projet',
+      goal = 'Comprendre et exécuter le code avec succès'
+    } = req.body;
+
+    const tutorial = await providers.gemini.generateTutorial({
+      language,
+      software,
+      level,
+      topic,
+      goal,
+    });
+
+    res.json({
+      success: true,
+      tutorial,
+    });
+  } catch (err) {
+    console.error('Error during /api/tutorial:', err.message);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Échec de la création du tutoriel',
+    });
+  }
+});
+
+/**
  * POST /api/review
  * Mistral explicitly reviews an existing project or modified files.
  */

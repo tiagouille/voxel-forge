@@ -49,7 +49,8 @@ app.get('/', (req, res) => {
       '/api/review',
       '/api/fix',
       '/api/explain',
-      '/api/improve'
+      '/api/improve',
+      '/api/tutorial'
     ]
   });
 });

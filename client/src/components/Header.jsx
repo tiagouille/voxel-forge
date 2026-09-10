@@ -9,8 +9,13 @@ import {
   Settings, 
   Layers,
   Play,
-  GraduationCap
+  GraduationCap,
+  Gamepad2,
+  Palette,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
+import { sounds } from '../services/soundEffects';
 
 export function Header({ 
   mode, 
@@ -18,6 +23,10 @@ export function Header({
   providers, 
   onNewProject, 
   onOpenTutorial,
+  onOpenGallery,
+  onOpenTheme,
+  isMuted,
+  onToggleSound,
   onRun,
   onDownloadZip, 
   onOpenSettings,
@@ -111,7 +120,10 @@ export function Header({
       <div className="header-right">
         <button 
           className="btn btn-run btn-sm"
-          onClick={onRun}
+          onClick={() => {
+            sounds.playRun();
+            onRun();
+          }}
           title="Exécuter et essayer le jeu / site en direct (Run)"
         >
           <Play size={13} fill="#10b981" color="#10b981" />
@@ -120,7 +132,23 @@ export function Header({
 
         <button 
           className="btn btn-secondary btn-sm"
-          onClick={onOpenTutorial}
+          onClick={() => {
+            sounds.playClick();
+            onOpenGallery();
+          }}
+          title="Ouvrir la Galerie de jeux et templates (Voxel 3D, Cyberpunk, Arcade, Python...)"
+          style={{ borderColor: '#38bdf8', color: '#38bdf8' }}
+        >
+          <Gamepad2 size={14} color="#38bdf8" />
+          <span>Galerie</span>
+        </button>
+
+        <button 
+          className="btn btn-secondary btn-sm"
+          onClick={() => {
+            sounds.playClick();
+            onOpenTutorial();
+          }}
           title="Créer un tutoriel interactif pas à pas (Unreal Engine 5 Blueprints, Python PyCharm, Godot, etc.)"
           style={{ borderColor: '#a855f7', color: '#c084fc' }}
         >
@@ -130,7 +158,10 @@ export function Header({
 
         <button 
           className="btn btn-primary btn-sm"
-          onClick={onNewProject}
+          onClick={() => {
+            sounds.playClick();
+            onNewProject();
+          }}
           disabled={isGenerating}
         >
           <FolderPlus size={14} />
@@ -139,7 +170,30 @@ export function Header({
 
         <button 
           className="btn btn-secondary btn-sm"
-          onClick={onDownloadZip}
+          onClick={() => {
+            sounds.playClick();
+            onOpenTheme();
+          }}
+          title="Personnaliser le thème visuel (Cyberpunk, Matrix, Dracula, Synthwave...)"
+        >
+          <Palette size={14} />
+        </button>
+
+        <button 
+          className="btn btn-secondary btn-sm"
+          onClick={onToggleSound}
+          title={isMuted ? "Activer les sons rétro 8-bit" : "Désactiver les sons"}
+          style={{ color: isMuted ? '#8b949e' : '#3fb950' }}
+        >
+          {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+        </button>
+
+        <button 
+          className="btn btn-secondary btn-sm"
+          onClick={() => {
+            sounds.playSuccess();
+            onDownloadZip();
+          }}
           title="Télécharger l'arborescence complète en archive ZIP"
         >
           <Download size={14} />
@@ -148,7 +202,10 @@ export function Header({
 
         <button 
           className="btn btn-secondary btn-sm"
-          onClick={onOpenSettings}
+          onClick={() => {
+            sounds.playClick();
+            onOpenSettings();
+          }}
           title="Paramètres & Clés API"
         >
           <Settings size={14} />

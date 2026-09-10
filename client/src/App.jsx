@@ -9,8 +9,13 @@ import { ExplanationModal } from './components/ExplanationModal';
 import { PreviewModal } from './components/PreviewModal';
 import { TutorialModal } from './components/TutorialModal';
 import { TutorialViewerModal } from './components/TutorialViewerModal';
+import { GalleryModal } from './components/GalleryModal';
+import { TermsModal } from './components/TermsModal';
+import { ThemeModal } from './components/ThemeModal';
+import { Footer } from './components/Footer';
 import { api } from './services/api';
 import { downloadProjectAsZip } from './services/zipExport';
+import { sounds } from './services/soundEffects';
 import { DEFAULT_STARTER_PROJECT } from './constants/starterProject';
 
 const STORAGE_PROJECT_KEY = 'voxel_forge_active_project';
@@ -26,15 +31,31 @@ export default function App() {
   const [pipelineStatus, setPipelineStatus] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Customization: Theme & Audio
+  const [theme, setTheme] = useState(localStorage.getItem('voxel_theme') || 'default');
+  const [isMuted, setIsMuted] = useState(sounds.isMuted());
+
   // Modals
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isTutorialModalOpen, setIsTutorialModalOpen] = useState(false);
   const [isTutorialViewerOpen, setIsTutorialViewerOpen] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [runProjectOverride, setRunProjectOverride] = useState(null);
   const [currentTutorial, setCurrentTutorial] = useState(null);
   const [isGeneratingTutorial, setIsGeneratingTutorial] = useState(false);
   const [explanationModal, setExplanationModal] = useState({ isOpen: false, title: '', content: '' });
+
+  // Sync theme attribute to HTML root
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('voxel_theme', theme);
+    } catch(e) {}
+  }, [theme]);
 
   // Load providers and restore saved or default project without API calls
   useEffect(() => {
@@ -185,6 +206,65 @@ export default function App() {
     const defaultFile = formattedFiles.find(f => f.path.endsWith('.md')) || formattedFiles[0];
     setActiveFile(defaultFile);
     setOpenTabs([defaultFile]);
+  };
+
+  // Toggle Sound FX
+  const handleToggleSound = () => {
+    const newMuted = sounds.toggleMute();
+    setIsMuted(newMuted);
+  };
+
+  // Theme change
+  const handleSelectTheme = (newTheme) => {
+    setTheme(newTheme);
+  };
+
+  // Run a project directly from the gallery without replacing workspace
+  const handleRunGalleryProject = (tpl) => {
+    setRunProjectOverride(tpl);
+    setIsPreviewOpen(true);
+  };
+
+  // Load a gallery template into workspace
+  const handleLoadGalleryProject = (tpl) => {
+    setProject(tpl);
+    try {
+      localStorage.setItem(STORAGE_PROJECT_KEY, JSON.stringify(tpl));
+    } catch(e) {}
+    const defaultFile = tpl.files.find(f => f.path.includes('index') || f.path.includes('main')) || tpl.files[0];
+    setActiveFile(defaultFile);
+    setOpenTabs([defaultFile]);
+    sounds.playSuccess();
+  };
+
+  // Apply Copilot real-time code modifications
+  const handleApplyCopilotFiles = (modifiedFiles) => {
+    if (!Array.isArray(modifiedFiles) || modifiedFiles.length === 0) return;
+    setProject(prev => {
+      if (!prev) return prev;
+      let updatedFiles = [...prev.files];
+      for (const mod of modifiedFiles) {
+        const existingIdx = updatedFiles.findIndex(f => f.path === mod.path);
+        if (existingIdx !== -1) {
+          updatedFiles[existingIdx] = { ...updatedFiles[existingIdx], content: mod.content };
+        } else {
+          updatedFiles.push({ path: mod.path, content: mod.content, language: 'javascript' });
+        }
+      }
+      const updated = { ...prev, files: updatedFiles };
+      try {
+        localStorage.setItem(STORAGE_PROJECT_KEY, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    modifiedFiles.forEach(mod => {
+      if (activeFile && activeFile.path === mod.path) {
+        setActiveFile(prev => ({ ...prev, content: mod.content }));
+      }
+    });
+
+    sounds.playSuccess();
   };
 
   // Review with Mistral
@@ -401,6 +481,10 @@ export default function App() {
         providers={providers}
         onNewProject={() => setIsProjectModalOpen(true)}
         onOpenTutorial={() => setIsTutorialModalOpen(true)}
+        onOpenGallery={() => setIsGalleryOpen(true)}
+        onOpenTheme={() => setIsThemeModalOpen(true)}
+        isMuted={isMuted}
+        onToggleSound={handleToggleSound}
         onRun={() => setIsPreviewOpen(true)}
         onDownloadZip={handleDownloadZip}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
@@ -432,7 +516,7 @@ export default function App() {
           isDirty={isDirty}
         />
 
-        {/* Right: AI Assistant & Mistral Review */}
+        {/* Right: AI Assistant, Mistral Review & Chat Copilot */}
         <AssistantPanel 
           project={project}
           activeFile={activeFile}
@@ -448,14 +532,48 @@ export default function App() {
           onExplainActiveFile={handleExplainActiveFile}
           onRegenerateActiveFile={handleRegenerateActiveFile}
           onDownloadZip={handleDownloadZip}
+          onApplyCopilotFiles={handleApplyCopilotFiles}
         />
       </div>
+
+      {/* Bottom Status Bar / Footer */}
+      <Footer 
+        project={project}
+        activeFile={activeFile}
+        theme={theme}
+        isMuted={isMuted}
+        onToggleSound={handleToggleSound}
+        onOpenTerms={() => setIsTermsOpen(true)}
+        onOpenThemeSelect={() => setIsThemeModalOpen(true)}
+      />
 
       {/* Modals */}
       <PreviewModal 
         isOpen={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
-        project={project}
+        onClose={() => {
+          setIsPreviewOpen(false);
+          setRunProjectOverride(null);
+        }}
+        project={runProjectOverride || project}
+      />
+
+      <GalleryModal 
+        isOpen={isGalleryOpen}
+        onClose={() => setIsGalleryOpen(false)}
+        onLoadProject={handleLoadGalleryProject}
+        onRunProject={handleRunGalleryProject}
+      />
+
+      <TermsModal 
+        isOpen={isTermsOpen}
+        onClose={() => setIsTermsOpen(false)}
+      />
+
+      <ThemeModal 
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+        currentTheme={theme}
+        onSelectTheme={handleSelectTheme}
       />
 
       <TutorialModal 

@@ -25,6 +25,98 @@
   --tab-inactive: #13171d;
 }
 
+/* Cyberpunk Neon Theme */
+[data-theme="cyberpunk"] {
+  --bg-app: #0c0517;
+  --bg-sidebar: #160a2b;
+  --bg-panel: #160a2b;
+  --bg-editor: #190c33;
+  --bg-card: #200f3d;
+  --bg-card-hover: #2e1656;
+  --border-color: #4a1f80;
+  --border-light: #7b32d4;
+  --text-main: #fdf4ff;
+  --text-muted: #d8b4fe;
+  --text-dim: #a855f7;
+  --accent-cyan: #facc15;
+  --accent-blue: #38bdf8;
+  --accent-purple: #f43f5e;
+  --accent-green: #10b981;
+  --accent-amber: #fbbf24;
+  --accent-red: #ef4444;
+  --tab-active: #190c33;
+  --tab-inactive: #120726;
+}
+
+/* Matrix Hacker Theme */
+[data-theme="matrix"] {
+  --bg-app: #040804;
+  --bg-sidebar: #091209;
+  --bg-panel: #091209;
+  --bg-editor: #0c180c;
+  --bg-card: #0f1f0f;
+  --bg-card-hover: #152c15;
+  --border-color: #1a421a;
+  --border-light: #256025;
+  --text-main: #bbf7d0;
+  --text-muted: #4ade80;
+  --text-dim: #22c55e;
+  --accent-cyan: #22c55e;
+  --accent-blue: #4ade80;
+  --accent-purple: #86efac;
+  --accent-green: #22c55e;
+  --accent-amber: #eab308;
+  --accent-red: #ef4444;
+  --tab-active: #0c180c;
+  --tab-inactive: #070e07;
+}
+
+/* Dracula Pro Theme */
+[data-theme="dracula"] {
+  --bg-app: #1e1f29;
+  --bg-sidebar: #282a36;
+  --bg-panel: #282a36;
+  --bg-editor: #21222c;
+  --bg-card: #343746;
+  --bg-card-hover: #44475a;
+  --border-color: #44475a;
+  --border-light: #6272a4;
+  --text-main: #f8f8f2;
+  --text-muted: #6272a4;
+  --text-dim: #44475a;
+  --accent-cyan: #8be9fd;
+  --accent-blue: #6272a4;
+  --accent-purple: #bd93f9;
+  --accent-green: #50fa7b;
+  --accent-amber: #f1fa8c;
+  --accent-red: #ff5555;
+  --tab-active: #21222c;
+  --tab-inactive: #191a21;
+}
+
+/* Synthwave 80s Theme */
+[data-theme="synthwave"] {
+  --bg-app: #12072b;
+  --bg-sidebar: #1e0c45;
+  --bg-panel: #1e0c45;
+  --bg-editor: #261058;
+  --bg-card: #2f146b;
+  --bg-card-hover: #3f1c8e;
+  --border-color: #ff71ce40;
+  --border-light: #01cdfe60;
+  --text-main: #fff;
+  --text-muted: #ff9cf0;
+  --text-dim: #05d9e8;
+  --accent-cyan: #01cdfe;
+  --accent-blue: #05d9e8;
+  --accent-purple: #ff71ce;
+  --accent-green: #01ffc3;
+  --accent-amber: #ffb86c;
+  --accent-red: #ff2a6d;
+  --tab-active: #261058;
+  --tab-inactive: #180938;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

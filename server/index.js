@@ -50,7 +50,8 @@ app.get('/', (req, res) => {
       '/api/fix',
       '/api/explain',
       '/api/improve',
-      '/api/tutorial'
+      '/api/tutorial',
+      '/api/chat'
     ]
   });
 });

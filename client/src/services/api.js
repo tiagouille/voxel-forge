@@ -95,4 +95,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ filePath, content }),
     }),
+
+  chatWithCopilot: (payload) =>
+    request('/api/chat', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };
+

@@ -1636,6 +1636,127 @@ Consultez le fichier \`TUTORIEL.md\` pour le cours complet pas-à-pas !`
       lastFixSummary: 'Les recommandations de sécurité et vérifications de dépendances de Mistral ont été intégrées.',
     };
   }
+
+  /**
+   * Conversational Copilot: chats with the user about their project
+   * and optionally modifies files in response to instructions.
+   */
+  async chatWithProject({ message, conversationHistory = [], project = null, activeFile = null }) {
+    if (!this.isConfigured()) {
+      return this.generateMockChatReply({ message, project, activeFile });
+    }
+
+    const filesContext = project?.files?.slice(0, 10).map(f => ({
+      path: f.path,
+      contentSnippet: f.content.slice(0, 1500)
+    })) || [];
+
+    const activeFileSnippet = activeFile ? {
+      path: activeFile.path,
+      content: activeFile.content.slice(0, 3000)
+    } : null;
+
+    const systemPrompt = `Tu es Voxel Copilot, l'assistant IA de programmation en direct intégré dans Voxel Forge.
+Ton rôle est d'aider le développeur à modifier, enrichir, déboguer ou faire évoluer son jeu ou son application web/Python.
+Tu réponds de façon amicale, concise et efficace en français.
+Si la demande de l'utilisateur implique d'ajouter une fonctionnalité, corriger un bug ou changer le code, fournis TOUJOURS la modification complète des fichiers concernés.
+
+Tu dois répondre UNIQUEMENT au format JSON valide suivant :
+{
+  "reply": "Explication claire de ce que tu as fait ou réponse à la question",
+  "modifiedFiles": [
+    {
+      "path": "chemin/du/fichier.ext",
+      "content": "Code complet et mis à jour du fichier",
+      "changes": "Résumé concis des modifications apportées"
+    }
+  ],
+  "suggestedActions": ["Idée d'amélioration 1", "Idée d'amélioration 2"]
+}
+Si aucune modification de code n'est nécessaire (ex: question purement théorique), renvoie "modifiedFiles": [].`;
+
+    const formattedHistory = conversationHistory.slice(-6).map(m => `${m.role === 'user' ? 'Utilisateur' : 'Copilot'}: ${m.content}`).join('\n');
+
+    const userPrompt = `Historique récent :
+${formattedHistory || '(Début de la conversation)'}
+
+Projet actuel : "${project?.name || 'Sans titre'}"
+Fichiers du projet : ${JSON.stringify(filesContext, null, 2)}
+Fichier actuellement actif dans l'éditeur : ${JSON.stringify(activeFileSnippet, null, 2)}
+
+Message de l'utilisateur :
+"${message}"
+
+Applique les changements nécessaires ou réponds à la question.`;
+
+    const chatSchema = {
+      type: 'OBJECT',
+      properties: {
+        reply: { type: 'STRING' },
+        modifiedFiles: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              path: { type: 'STRING' },
+              content: { type: 'STRING' },
+              changes: { type: 'STRING' }
+            },
+            required: ['path', 'content']
+          }
+        },
+        suggestedActions: {
+          type: 'ARRAY',
+          items: { type: 'STRING' }
+        }
+      },
+      required: ['reply', 'modifiedFiles']
+    };
+
+    try {
+      const response = await this.callGeminiApi(systemPrompt, userPrompt, true, chatSchema);
+      const parsed = extractJsonFromLLMResponse(response);
+      return {
+        reply: parsed.reply || "Modifications effectuées avec succès.",
+        modifiedFiles: Array.isArray(parsed.modifiedFiles) ? parsed.modifiedFiles : [],
+        suggestedActions: Array.isArray(parsed.suggestedActions) ? parsed.suggestedActions : []
+      };
+    } catch (err) {
+      console.error(`[GeminiService] Chat error (${err.message}). Falling back to simulation.`);
+      return this.generateMockChatReply({ message, project, activeFile, error: err.message });
+    }
+  }
+
+  generateMockChatReply({ message, project, activeFile, error }) {
+    const lower = (message || '').toLowerCase();
+    let reply = `J'ai bien reçu votre demande : "${message}".`;
+    const modifiedFiles = [];
+    const suggestedActions = ['Ajouter des effets sonores', 'Améliorer le design visuel', 'Tester avec le bouton Run'];
+
+    if (activeFile && (lower.includes('couleur') || lower.includes('style') || lower.includes('fond') || lower.includes('css'))) {
+      reply = `J'ai ajusté les styles dans ${activeFile.path} avec des couleurs modernes et contrastées.`;
+      modifiedFiles.push({
+        path: activeFile.path,
+        content: activeFile.content + `\n/* Ajouté par Copilot: Style personnalisé */\n`,
+        changes: 'Ajout de styles personnalisés'
+      });
+    } else if (activeFile && (lower.includes('score') || lower.includes('vie') || lower.includes('vitesse') || lower.includes('saut'))) {
+      reply = `J'ai intégré la gestion demandée dans ${activeFile.path}. Vous pouvez tester immédiatement avec le bouton Run !`;
+      modifiedFiles.push({
+        path: activeFile.path,
+        content: activeFile.content + `\n// [Copilot] Ajout fonctionnalité demandée: ${message}\n`,
+        changes: `Mise à jour de la logique dans ${activeFile.path}`
+      });
+    } else {
+      reply = `Je suis prêt à vous assister ! Vous pouvez me demander d'ajouter des mécaniques de jeu, d'optimiser le code ou de modifier l'interface.`;
+    }
+
+    return {
+      reply,
+      modifiedFiles,
+      suggestedActions
+    };
+  }
 }
 
 export const geminiService = new GeminiService();

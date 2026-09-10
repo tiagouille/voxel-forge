@@ -230,56 +230,233 @@ function stripImportsExports(code = '') {
 }
 
 /**
- * Interactive Python simulated terminal
+ * Interactive Python WebAssembly (Pyodide) runner with terminal emulation
  */
 function createPythonTerminalBundle(project) {
-  const mainFile = project.files.find(f => f.path.includes('main.py')) || project.files[0];
-  const code = mainFile?.content || '# Aucun script Python';
+  const mainFile = project.files.find(f => f.path.endsWith('.py')) || project.files[0];
+  const rawCode = mainFile?.content || '# Aucun script Python';
+  const escapedJsonCode = JSON.stringify(rawCode);
 
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Python Console Runner</title>
+  <title>Python 3.12 WebAssembly Runner — ${escapeHtml(project.name || 'Script')}</title>
   <style>
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       background: #090d16;
       color: #38bdf8;
-      font-family: 'Fira Code', monospace;
+      font-family: 'Fira Code', Consolas, Monaco, monospace;
       padding: 16px;
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
     }
-    .header { color: #8b949e; border-bottom: 1px solid #30363d; padding-bottom: 8px; margin-bottom: 12px; }
-    .output { white-space: pre-wrap; color: #e6edf3; }
-    .success { color: #3fb950; font-weight: bold; }
-    .input-line { display: flex; gap: 8px; margin-top: 12px; }
+    .header {
+      color: #8b949e;
+      border-bottom: 1px solid #30363d;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .status-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+    .terminal-output {
+      flex: 1;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #e6edf3;
+      padding-right: 6px;
+    }
+    .output-info { color: #8b949e; }
+    .output-success { color: #3fb950; font-weight: bold; }
+    .output-error { color: #f85149; font-weight: bold; }
+    .output-cmd { color: #38bdf8; font-weight: bold; }
+    .input-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #21262d;
+      flex-shrink: 0;
+    }
+    .prompt {
+      color: #38bdf8;
+      font-weight: bold;
+      user-select: none;
+    }
     input {
       background: transparent;
       border: none;
       outline: none;
-      color: #fff;
+      color: #f0f6fc;
       font-family: inherit;
       font-size: inherit;
       flex: 1;
     }
+    .loading-spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #38bdf8;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 0.8s linear infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div class="header">Python 3.12 Interpreter — ${project.name}</div>
-  <div class="output">
-✓ Script principal : <strong>${mainFile.path}</strong>
-✓ Initialisation du runtime...
-${escapeHtml(code.slice(0, 600))}
+  <div class="header">
+    <div>
+      <span>🐍 Python 3.12 WebAssembly (Pyodide)</span>
+      <span style="color: #6e7681; margin-left: 8px;">Fichier : <strong>${escapeHtml(mainFile?.path || 'main.py')}</strong></span>
+    </div>
+    <div id="status" class="status-badge">
+      <span class="loading-spinner"></span> Initialisation du moteur Pyodide...
+    </div>
+  </div>
 
---- Sortie du programme ---
-✓ Exécution terminée sans erreur (Code 0).
-  </div>
+  <div id="output" class="terminal-output"></div>
+
   <div class="input-line">
-    <span style="color: #38bdf8;">&gt;&gt;&gt;</span>
-    <input type="text" placeholder="Entrez une commande Python..." onkeydown="if(event.key==='Enter'){ document.querySelector('.output').innerHTML += '\\n&gt;&gt;&gt; ' + this.value + '\\n[Simulation] ' + this.value; this.value=''; }">
+    <span class="prompt">&gt;&gt;&gt;</span>
+    <input id="repl-input" type="text" placeholder="Entrez une commande Python (ex: print(2 + 2), import math...)" disabled autocomplete="off">
   </div>
+
+  <!-- Pyodide CDN -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script>
+    const output = document.getElementById('output');
+    const input = document.getElementById('repl-input');
+    const status = document.getElementById('status');
+    const userCode = ${escapedJsonCode};
+
+    function append(text, type = '') {
+      const span = document.createElement('span');
+      if (type) span.className = 'output-' + type;
+      span.textContent = text + '\\n';
+      output.appendChild(span);
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function sendParent(level, message) {
+      try {
+        window.parent.postMessage({ type: 'VOXEL_CONSOLE', level, message }, '*');
+      } catch(e) {}
+    }
+
+    let pyodideInstance = null;
+
+    async function initPyodide() {
+      append("⚡ Démarrage du moteur Python WebAssembly...", "info");
+      const startTime = performance.now();
+
+      try {
+        if (typeof loadPyodide === 'undefined') {
+          throw new Error("Impossible de charger Pyodide depuis le CDN.");
+        }
+
+        pyodideInstance = await loadPyodide({
+          stdout: (text) => {
+            append(text);
+            sendParent('info', text);
+          },
+          stderr: (text) => {
+            append(text, 'error');
+            sendParent('error', text);
+          }
+        });
+
+        const loadTime = Math.round(performance.now() - startTime);
+        status.innerHTML = "✓ Prêt (" + loadTime + "ms)";
+        status.style.color = "#3fb950";
+        status.style.borderColor = "rgba(63, 185, 80, 0.4)";
+        status.style.background = "rgba(63, 185, 80, 0.15)";
+        input.disabled = false;
+        input.focus();
+
+        append("✓ Environnement Python prêt. Exécution du script principal...\\n", "success");
+
+        // Execute user script
+        try {
+          const runStart = performance.now();
+          await pyodideInstance.runPythonAsync(userCode);
+          const duration = Math.round(performance.now() - runStart);
+          append("\\n--- Fin de l'exécution (" + duration + "ms, Code 0) ---", "success");
+        } catch (err) {
+          append("\\nErreur d'exécution Python :\\n" + (err.message || err), "error");
+          sendParent('error', err.message || String(err));
+        }
+
+      } catch (loadErr) {
+        status.innerText = "Mode secours local";
+        status.style.color = "#d29922";
+        append("⚠️ " + loadErr.message + "\\nBasculement vers l'émulateur JavaScript local :", "info");
+
+        // Simple local JS eval simulation for quick offline tests
+        input.disabled = false;
+        try {
+          const lines = userCode.split('\\n');
+          for (const line of lines) {
+            if (line.trim().startsWith('print(')) {
+              const content = line.trim().slice(6, -1);
+              append(eval(content));
+            }
+          }
+          append("\\n✓ Exécution simulée terminée.", "success");
+        } catch (e) {
+          append("Erreur simulation: " + e.message, "error");
+        }
+      }
+    }
+
+    // Interactive REPL Input handler
+    input.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        const val = input.value.trim();
+        if (!val) return;
+
+        append(">>> " + val, "cmd");
+        input.value = '';
+
+        if (pyodideInstance) {
+          try {
+            const res = await pyodideInstance.runPythonAsync(val);
+            if (res !== undefined && res !== null) {
+              append(String(res));
+              sendParent('info', String(res));
+            }
+          } catch (err) {
+            append(err.message || String(err), "error");
+            sendParent('error', err.message || String(err));
+          }
+        } else {
+          append("[Simulation] " + val);
+        }
+      }
+    });
+
+    initPyodide();
+  </script>
 </body>
 </html>`;
 }

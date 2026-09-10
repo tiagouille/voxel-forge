@@ -271,3 +271,37 @@ aiRouter.post('/improve', async (req, res) => {
     });
   }
 });
+
+/**
+ * POST /api/chat
+ * Conversational Voxel Copilot: chats with the user about their project
+ * and can return real-time file updates.
+ */
+aiRouter.post('/chat', async (req, res) => {
+  try {
+    const { message, conversationHistory = [], project = null, activeFile = null } = req.body;
+
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ success: false, error: 'Message requis' });
+    }
+
+    const response = await providers.gemini.chatWithProject({
+      message: message.trim(),
+      conversationHistory,
+      project,
+      activeFile,
+    });
+
+    res.json({
+      success: true,
+      ...response,
+    });
+  } catch (err) {
+    console.error('Error during /api/chat:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Échec de la discussion avec Copilot',
+    });
+  }
+});
+

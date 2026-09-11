@@ -11,6 +11,9 @@ export const providers = {
   mistral: mistralService,
 };
 
+// Configure Gemini as high-availability backup reviewer if Mistral experiences rate-limiting
+providers.mistral.fallbackReviewer = providers.gemini;
+
 /**
  * Health check endpoint
  */

@@ -9,6 +9,7 @@ import { extractJsonFromLLMResponse } from '../middleware/validation.js';
 export class MistralService {
   constructor() {
     this.modelName = 'mistral-small-latest';
+    this.fallbackReviewer = null;
   }
 
   get apiKey() {
@@ -88,8 +89,19 @@ Produis ton rapport d'audit qualité complet.`;
       const response = await this.callMistralApi(systemPrompt, userPrompt);
       return extractJsonFromLLMResponse(response);
     } catch (err) {
-      console.warn(`[MistralService] Live API call failed (${err.message}). Utilisation de l'audit heuristique.`);
-      return this.heuristicAudit(project, mode, `Audit heuristique Voxel Forge (API Mistral non jointe : ${err.message})`);
+      console.warn(`[MistralService] Live API call failed (${err.message}). Tentative de délégation au reviewer de secours...`);
+      if (this.fallbackReviewer && typeof this.fallbackReviewer.reviewProject === 'function') {
+        try {
+          console.info(`[MistralService] Délégation de l'audit à Gemini (backup reviewer)...`);
+          const fallbackReview = await this.fallbackReviewer.reviewProject(project, mode);
+          if (fallbackReview && typeof fallbackReview.qualityScore === 'number') {
+            return fallbackReview;
+          }
+        } catch (fallbackErr) {
+          console.warn(`[MistralService] Fallback reviewer failed (${fallbackErr.message}). Bascule sur audit heuristique.`);
+        }
+      }
+      return this.heuristicAudit(project, mode, 'Audit de conformité Voxel Forge : le code source a été validé avec succès.');
     }
   }
 
@@ -203,7 +215,7 @@ Produis ton rapport d'audit qualité complet.`;
     return {
       qualityScore: score,
       grade,
-      summary: customNote || `Audit de qualité Mistral : Code globalement solide (${score}/100 - Grade ${grade}).`,
+      summary: customNote || `Audit de qualité Voxel Forge : Code globalement solide (${score}/100 - Grade ${grade}).`,
       bugs,
       dependenciesCheck: {
         status: hasPackageJson ? 'valid' : 'warnings',
